@@ -1,0 +1,13 @@
+type IconName = "grid" | "chart" | "users" | "document" | "settings" | "bell" | "plus" | "menu" | "arrow" | "activity" | "check" | "search" | "user-add" | "phone" | "circle-check" | "eye" | "trash" | "chevron-left" | "chevron-right";
+
+const paths: Record<IconName, React.ReactNode> = {
+  grid: <><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></>,
+  chart: <><path d="M4 19V5"/><path d="M4 19h16"/><path d="m7 15 4-5 3 3 5-7"/></>, users: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></>,
+  document: <><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h6"/></>, settings: <><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2 2-.06-.06A1.7 1.7 0 0 0 15.86 18a1.7 1.7 0 0 0-1.03 1.55V20h-2.86v-.09A1.7 1.7 0 0 0 10.94 18a1.7 1.7 0 0 0-1.88.34L9 18.4l-2-2 .06-.06A1.7 1.7 0 0 0 7.4 14.5 1.7 1.7 0 0 0 5.86 13.5H5V10.6h.86A1.7 1.7 0 0 0 7.4 9.57a1.7 1.7 0 0 0-.34-1.88L7 7.63l2-2 .06.06a1.7 1.7 0 0 0 1.88.34A1.7 1.7 0 0 0 11.97 4.5V4h2.86v.5a1.7 1.7 0 0 0 1.03 1.53 1.7 1.7 0 0 0 1.88-.34l.06-.06 2 2-.06.06a1.7 1.7 0 0 0-.34 1.88 1.7 1.7 0 0 0 1.54 1.03H21v2.9h-.06A1.7 1.7 0 0 0 19.4 15Z"/></>,
+  bell: <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></>, plus: <><path d="M12 5v14M5 12h14"/></>, menu: <><path d="M4 7h16M4 12h16M4 17h16"/></>, arrow: <><path d="M5 12h14M13 6l6 6-6 6"/></>, activity: <path d="M3 12h4l3-8 4 16 3-8h4"/>, check: <path d="m5 12 4 4L19 6"/>,
+  search: <><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></>, "user-add": <><circle cx="9" cy="8" r="3"/><path d="M3.5 20v-1.5A4.5 4.5 0 0 1 8 14h2a4.5 4.5 0 0 1 4.5 4.5V20M18 8v6M15 11h6"/></>, phone: <><path d="M7 3h3l1.2 4.1-2 1.6a16 16 0 0 0 6.1 6.1l1.6-2L21 14v3a4 4 0 0 1-4 4C9.3 21 3 14.7 3 7a4 4 0 0 1 4-4Z"/></>, "circle-check": <><circle cx="12" cy="12" r="8.5"/><path d="m8.5 12 2.2 2.2 4.8-5"/></>, eye: <><path d="M2.5 12s3.5-5 9.5-5 9.5 5 9.5 5-3.5 5-9.5 5-9.5-5-9.5-5Z"/><circle cx="12" cy="12" r="2"/></>, trash: <><path d="M4 7h16M9 7V4h6v3M7 7l.8 13h8.4L17 7M10 11v5M14 11v5"/></>, "chevron-left": <path d="m14 6-6 6 6 6"/>, "chevron-right": <path d="m10 6 6 6-6 6"/>
+};
+
+export function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
+  return <svg className="nav-icon" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]}</svg>;
+}

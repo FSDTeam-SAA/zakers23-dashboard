@@ -1,0 +1,12 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;0,700;1,600&family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { --font-jakarta: 'Plus Jakarta Sans'; --font-inter: 'Inter'; --font-cormorant: 'Cormorant Garamond'; }
+* { box-sizing: border-box; }
+body { margin: 0; background: #F7F9FC; color: #1A1A1A; font-family: var(--font-jakarta), sans-serif; }
+button, input { font: inherit; }
+button { cursor: pointer; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; } }
