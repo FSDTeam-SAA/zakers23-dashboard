@@ -13,8 +13,6 @@ build/
 coverage/
 
 # Local environment files
-.env
-.env.local
 .env.development.local
 .env.test.local
 .env.production.local
@@ -34,5 +32,5 @@ pnpm-debug.log*
 # Editor and operating-system files
 .DS_Store
 Thumbs.db
-.vscode/
 .idea/
+config.bat
