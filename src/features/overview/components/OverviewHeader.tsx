@@ -1,6 +1,50 @@
 import Image from "next/image";
 import { Icon } from "@/components/ui/icon";
 
-export function OverviewHeader({ title = "Good Morning, Admin", description = "Here’s what’s happening across your portfolio today.", action }: { title?: string; description?: string; action?: React.ReactNode }) {
-  return <header className="sticky top-0 z-10 flex min-h-[88px] items-center justify-between gap-5 border-b border-line bg-white/95 px-5 py-4 backdrop-blur-md sm:px-8"><div><h1 className="font-inter text-xl font-normal text-ink sm:text-2xl">{title}</h1><p className="mt-1 text-sm text-muted sm:text-base">{description}</p></div><div className="flex shrink-0 items-center gap-3 sm:gap-4"><label className="hidden h-11 w-[360px] items-center gap-2 rounded-full border border-line px-4 text-muted md:flex"><Icon name="activity" size={15}/><span className="sr-only">Search</span><input className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-[#9B9B9B]" placeholder="Search developments, articles, inquiries..." /></label>{action}<button aria-label="Notifications" className="relative grid size-10 place-items-center rounded-full border border-line transition-colors hover:bg-cream focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold"><Icon name="bell" size={16}/><span className="absolute right-2 top-2 size-1.5 rounded-full bg-red-600"/></button><button aria-label="Open account menu" className="hidden h-11 items-center gap-2 rounded-full border border-line px-2.5 transition-colors hover:bg-cream focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold xl:flex"><Image className="size-7 rounded-full object-cover" src="/figma/image-1.jpeg" alt="" width={28} height={28}/><span className="font-inter text-base">Brett F.</span><span className="text-muted" aria-hidden="true">⌄</span></button></div></header>;
+export function OverviewHeader({
+  title = "Good Morning, Admin",
+  description = "Here’s what’s happening across your portfolio today.",
+  action,
+}: {
+  title?: string;
+  description?: string;
+  action?: React.ReactNode;
+}) {
+  return (
+    <header className="dashboard-header sticky top-0 z-10 flex min-h-[88px] items-center justify-between gap-5 border-b border-line bg-white/95 px-5 py-4 backdrop-blur-md sm:px-8">
+      <div>
+        <h1 className="font-inter text-xl font-normal text-ink sm:text-2xl">
+          {title}
+        </h1>
+        <p className="mt-1 text-sm text-muted sm:text-base">{description}</p>
+      </div>
+      <div className="flex shrink-0 items-center gap-3 sm:gap-4">
+        <label className="hidden h-11 w-[360px] items-center gap-2 rounded-full border border-line px-4 text-muted md:flex">
+          <Icon name="activity" size={15} />
+          <span className="sr-only">Search</span>
+          <input
+            className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-[#9B9B9B]"
+            placeholder="Search developments, articles, inquiries..."
+          />
+        </label>
+        {action}
+        <button
+          aria-label="Open account menu"
+          className="hidden h-11 items-center gap-2 rounded-full border border-line px-2.5 transition-colors hover:bg-cream focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold xl:flex"
+        >
+          <Image
+            className="size-7 rounded-full object-cover"
+            src="/figma/image-1.jpeg"
+            alt=""
+            width={28}
+            height={28}
+          />
+          <span className="font-inter text-base">Brett F.</span>
+          <span className="text-muted" aria-hidden="true">
+            ⌄
+          </span>
+        </button>
+      </div>
+    </header>
+  );
 }

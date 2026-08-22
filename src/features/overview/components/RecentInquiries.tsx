@@ -61,7 +61,7 @@ const inquiries: Inquiry[] = [
 
 export function RecentInquiries() {
   return (
-    <section className="overflow-hidden rounded border border-line bg-white px-4 py-6 sm:px-7">
+    <section className="dashboard-panel overflow-hidden rounded border border-line bg-white px-4 py-6 sm:px-7">
       <div className="mb-5 flex items-center justify-between gap-4">
         <div>
           <p className="text-base text-gold">Client Activity</p>
