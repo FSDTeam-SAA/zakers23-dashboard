@@ -6,11 +6,195 @@ import { useState } from "react";
 import { Icon } from "@/components/ui/icon";
 import { OverviewHeader } from "@/features/overview/components/OverviewHeader";
 import { OverviewSidebar } from "@/features/overview/components/OverviewSidebar";
+import {
+  useDeleteDevelopment,
+  useDevelopments,
+} from "../hooks/use-developments";
+import type {
+  ConstructionStage,
+  Development,
+} from "../types/development.types";
 import { DevelopmentDetailDrawer } from "./DevelopmentDetailDrawer";
 
-const rows = Array.from({ length: 9 }, (_, index) => ({ id: index + 1, project: "Marisol Bayfront", neighborhood: "Brickell, Miami", price: "$2.4M", stage: "Under Construction", delivery: "Q4 2026", updated: "Jun 22, 2026" }));
-const stats = [["6", "Total Developments", "document"], ["3", "PRE-CONSTRUCTION", "users"], ["2", "MOVE-IN READY", "activity"]] as const;
+const stages: ConstructionStage[] = [
+  "pre-construction",
+  "under construction",
+  "move in ready",
+];
+const money = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  maximumFractionDigits: 0,
+});
 
-function StatCard({ value, label, icon }: { value: string; label: string; icon: "document" | "users" | "activity" }) { return <article className="flex min-h-[108px] items-center gap-4 rounded border border-line bg-white p-6"><span className="grid size-12 place-items-center rounded-full bg-canvas text-gold"><Icon name={icon} size={20}/></span><div><p className="font-display text-[27px] font-semibold leading-none">{value}</p><p className="mt-2 text-base text-[#6B7280]">{label}</p></div></article>; }
+function neighbourhoodName(value: Development["selectedNeighbourhood"]) {
+  return typeof value === "string" ? "—" : value.name;
+}
 
-export function DevelopmentsPage() { const [selectedProject, setSelectedProject] = useState<number | null>(null); return <div className="min-h-dvh bg-canvas text-ink lg:flex"><OverviewSidebar active="Developments"/><div className="min-w-0 flex-1"><OverviewHeader title="Developments" description="Manage all luxury developments, pricing, galleries and project information." action={<Link href="/developments/new" className="hidden h-[51px] items-center rounded bg-gold px-8 font-inter font-semibold text-white transition-colors hover:bg-[#ad8b1f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 lg:flex">Add Development</Link>}/><main className="mx-auto max-w-[1620px] space-y-6 px-5 py-6 sm:px-8"><section className="grid grid-cols-1 gap-5 md:grid-cols-3">{stats.map(([value, label, icon]) => <StatCard key={label} value={value} label={label} icon={icon}/>)}</section><section className="flex flex-wrap justify-end gap-3 border-t border-line pt-4"><select aria-label="Filter by neighborhood" className="h-9 min-w-[160px] rounded border border-line bg-[#faf9f7] px-3 text-sm text-muted"><option>Neighborhood</option></select><select aria-label="Filter by construction status" className="h-9 min-w-[170px] rounded border border-line bg-[#faf9f7] px-3 text-sm text-muted"><option>Construction Status</option></select><select aria-label="Filter by delivery year" className="h-9 min-w-[145px] rounded border border-line bg-[#faf9f7] px-3 text-sm text-muted"><option>Delivery Year</option></select><select aria-label="Filter by published status" className="h-9 min-w-[150px] rounded border border-line bg-[#faf9f7] px-3 text-sm text-muted"><option>Published Status</option></select><button className="h-9 px-2 text-sm text-[#6B7280] hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold">↻&nbsp; Reset Filters</button></section><section className="overflow-hidden rounded border border-line bg-white p-4 sm:p-7"><div className="overflow-x-auto"><table className="min-w-[1140px] w-full border-collapse"><thead><tr className="bg-[#0D1B34] text-left font-inter text-base text-white"><th className="rounded-l px-6 py-4 font-normal">Project</th><th className="px-4 py-4 font-normal">Neighborhood</th><th className="px-4 py-4 font-normal">Starting Price</th><th className="px-4 py-4 font-normal">Construction Stage</th><th className="px-4 py-4 font-normal">Delivery</th><th className="px-4 py-4 font-normal">Status</th><th className="px-4 py-4 font-normal">Updated</th><th className="rounded-r px-4 py-4 text-center font-normal">Action</th></tr></thead><tbody>{rows.map((row) => <tr key={row.id} className="border-b border-line last:border-0"><td className="px-2 py-5"><div className="flex items-center gap-2"><Image src="/figma/developments/development-1.jpeg" alt="Marisol Bayfront" width={64} height={49} className="h-12 w-16 rounded object-cover"/><span className="font-inter font-semibold">{row.project}</span></div></td><td className="px-4 text-muted">{row.neighborhood}</td><td className="px-4 font-inter font-semibold">{row.price}</td><td className="px-4"><span className="inline-flex rounded-full bg-[#E5E7EB] px-3 py-2 text-[#0D1B34]">{row.stage}</span></td><td className="px-4 text-muted">{row.delivery}</td><td className="px-4"><span className="inline-flex rounded-full bg-[#E5F6EA] px-3 py-1 text-[11px] font-semibold tracking-wide text-[#16A34A]">PUBLISHED</span></td><td className="px-4">{row.updated}</td><td className="px-4"><div className="flex justify-center gap-2 text-gold"><button onClick={() => setSelectedProject(row.id)} aria-label={`View ${row.project}`} className="grid size-8 place-items-center rounded-full hover:bg-[#fbf5e1] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold"><Icon name="activity" size={14}/></button><button aria-label={`Edit ${row.project}`} className="grid size-8 place-items-center rounded-full hover:bg-[#fbf5e1] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold"><Icon name="document" size={14}/></button><button aria-label={`Delete ${row.project}`} className="grid size-8 place-items-center rounded-full text-danger hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger">×</button></div></td></tr>)}</tbody></table></div><footer className="flex flex-wrap items-center justify-between gap-4 border-t border-line px-2 pt-5 text-muted"><div className="flex items-center gap-2">Show <select aria-label="Rows per page" className="h-9 rounded border border-line bg-white px-3 text-sm"><option>10</option></select> per page</div><div className="flex items-center gap-2"><button aria-label="Previous page" className="grid size-8 place-items-center rounded-full border border-line">‹</button><button aria-current="page" className="grid size-8 place-items-center rounded-full bg-[#0D1B34] text-sm text-white">1</button><button className="grid size-8 place-items-center rounded-full text-sm">2</button><button className="grid size-8 place-items-center rounded-full text-sm">3</button><button aria-label="Next page" className="grid size-8 place-items-center rounded-full border border-line">›</button></div></footer></section></main></div>{selectedProject && <DevelopmentDetailDrawer onClose={() => setSelectedProject(null)}/>}</div>; }
+export function DevelopmentsPage() {
+  const [constructionStage, setConstructionStage] = useState<
+    ConstructionStage | ""
+  >("");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const {
+    data: developments = [],
+    isLoading,
+    error,
+  } = useDevelopments(constructionStage ? { constructionStage } : {});
+  const deleteMutation = useDeleteDevelopment();
+  const handleDelete = (development: Development) => {
+    if (
+      window.confirm(
+        `Delete ${development.developmentName}? This cannot be undone.`,
+      )
+    )
+      deleteMutation.mutate(development._id);
+  };
+
+  return (
+    <div className="min-h-dvh bg-canvas text-ink lg:flex">
+      <OverviewSidebar active="Developments" />
+      <div className="min-w-0 flex-1">
+        <OverviewHeader
+          title="Developments"
+          description="Manage all luxury developments, pricing, galleries and project information."
+          action={
+            <Link
+              href="/developments/new"
+              className="hidden h-[51px] items-center rounded bg-gold px-8 font-inter font-semibold text-white transition-colors hover:bg-[#ad8b1f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 lg:flex"
+            >
+              Add Development
+            </Link>
+          }
+        />
+        <main className="mx-auto max-w-[1620px] space-y-6 px-5 py-6 sm:px-8">
+          <section className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
+            <p className="font-inter text-sm text-muted">
+              {developments.length} development
+              {developments.length === 1 ? "" : "s"} found
+            </p>
+            <select
+              value={constructionStage}
+              onChange={(event) =>
+                setConstructionStage(
+                  event.target.value as ConstructionStage | "",
+                )
+              }
+              aria-label="Filter by construction stage"
+              className="h-11 min-w-48 rounded border border-line bg-white px-3 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-gold"
+            >
+              <option value="">All construction stages</option>
+              {stages.map((stage) => (
+                <option key={stage} value={stage}>
+                  {stage}
+                </option>
+              ))}
+            </select>
+          </section>
+          <section className="overflow-hidden rounded border border-line bg-white p-4 sm:p-7">
+            {isLoading && (
+              <p className="py-12 text-center text-muted" aria-live="polite">
+                Loading developments…
+              </p>
+            )}
+            {error && (
+              <p
+                role="alert"
+                className="rounded border border-red-200 bg-red-50 px-4 py-3 text-danger"
+              >
+                {error.message}
+              </p>
+            )}
+            {!isLoading && !error && developments.length === 0 && (
+              <p className="py-12 text-center text-muted">
+                No developments found. Add the first one to get started.
+              </p>
+            )}
+            {!isLoading && !error && developments.length > 0 && (
+              <div className="overflow-x-auto">
+                <table className="min-w-[960px] w-full border-collapse">
+                  <thead>
+                    <tr className="bg-[#0D1B34] text-left font-inter text-sm text-white">
+                      <th className="px-5 py-4 font-normal">Project</th>
+                      <th className="px-4 py-4 font-normal">Neighborhood</th>
+                      <th className="px-4 py-4 font-normal">Starting price</th>
+                      <th className="px-4 py-4 font-normal">
+                        Construction stage
+                      </th>
+                      <th className="px-4 py-4 font-normal">Delivery</th>
+                      <th className="px-4 py-4 text-center font-normal">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {developments.map((development) => (
+                      <tr
+                        key={development._id}
+                        className="border-b border-line last:border-0"
+                      >
+                        <td className="px-4 py-4">
+                          <div className="flex items-center gap-3">
+                            <Image
+                              src={development.heroImage}
+                              alt=""
+                              width={64}
+                              height={48}
+                              className="h-12 w-16 rounded object-cover"
+                            />
+                            <span className="font-inter font-semibold">
+                              {development.developmentName}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-4 text-muted">
+                          {neighbourhoodName(development.selectedNeighbourhood)}
+                        </td>
+                        <td className="px-4 font-inter font-semibold">
+                          {money.format(development.startingPrice)}
+                        </td>
+                        <td className="px-4">
+                          <span className="rounded-full bg-canvas px-3 py-1 text-sm capitalize">
+                            {development.constructionStage}
+                          </span>
+                        </td>
+                        <td className="px-4 text-muted">
+                          {development.deliveryYear}
+                        </td>
+                        <td className="px-4">
+                          <div className="flex justify-center gap-2">
+                            <button
+                              onClick={() => setSelectedId(development._id)}
+                              aria-label={`View ${development.developmentName}`}
+                              className="grid size-11 place-items-center rounded-full text-gold hover:bg-[#fbf5e1] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold"
+                            >
+                              <Icon name="eye" size={17} />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(development)}
+                              disabled={deleteMutation.isPending}
+                              aria-label={`Delete ${development.developmentName}`}
+                              className="grid size-11 place-items-center rounded-full text-danger hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger disabled:opacity-50"
+                            >
+                              <Icon name="trash" size={17} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        </main>
+      </div>
+      {selectedId && (
+        <DevelopmentDetailDrawer
+          id={selectedId}
+          onClose={() => setSelectedId(null)}
+        />
+      )}
+    </div>
+  );
+}

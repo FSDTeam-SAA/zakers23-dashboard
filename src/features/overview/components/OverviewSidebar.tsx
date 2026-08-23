@@ -22,6 +22,14 @@ export function OverviewSidebar({ active = "Dashboard" }: { active?: string }) {
   const router = useRouter();
   const [isLogoutOpen, setIsLogoutOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [admin, setAdmin] = useState<{ name: string; email: string; role: string } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/settings/profile")
+      .then((response) => response.ok ? response.json() : null)
+      .then((payload) => setAdmin(payload?.data ?? null))
+      .catch(() => setAdmin(null));
+  }, []);
 
   useEffect(() => {
     if (!isLogoutOpen) return;
@@ -32,9 +40,11 @@ export function OverviewSidebar({ active = "Dashboard" }: { active?: string }) {
     return () => window.removeEventListener("keydown", closeOnEscape);
   }, [isLogoutOpen]);
 
-  const confirmLogout = () => {
+  const confirmLogout = async () => {
     setIsLoggingOut(true);
+    await fetch("/api/auth/logout", { method: "POST" });
     router.replace("/login");
+    router.refresh();
   };
 
   return (
@@ -63,10 +73,10 @@ export function OverviewSidebar({ active = "Dashboard" }: { active?: string }) {
         </div>
         <div className="space-y-5">
           <div className="flex items-center gap-2">
-            <Image className="size-11 rounded-full object-cover" src="/figma/image-1.jpeg" alt="Demo Name" width={44} height={44} />
+            <div className="grid size-11 shrink-0 place-items-center rounded-full bg-[#25333d] text-sm font-bold text-white" aria-hidden="true">{admin?.name?.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase() || "AD"}</div>
             <div className="min-w-0">
-              <p className="truncate font-inter font-bold">Demo Name</p>
-              <p className="text-sm text-muted">Super Admin</p>
+              <p className="truncate font-inter font-bold">{admin?.name || "Administrator"}</p>
+              <p className="text-xs capitalize text-gold">{admin?.role || "admin"}</p>
             </div>
           </div>
           <button type="button" onClick={() => setIsLogoutOpen(true)} className="flex h-12 w-full items-center justify-center gap-2 rounded-md border border-danger font-inter font-semibold text-danger transition-colors hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger">

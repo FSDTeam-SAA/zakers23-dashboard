@@ -3,11 +3,136 @@
 import Image from "next/image";
 import { useEffect } from "react";
 import { Icon } from "@/components/ui/icon";
+import { useDevelopment } from "../hooks/use-developments";
 
-export function DevelopmentDetailDrawer({ onClose }: { onClose: () => void }) {
-  useEffect(() => { const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); }; window.addEventListener("keydown", closeOnEscape); return () => window.removeEventListener("keydown", closeOnEscape); }, [onClose]);
-  return <div className="fixed inset-0 z-50 flex justify-end" role="dialog" aria-modal="true" aria-labelledby="development-drawer-title"><button aria-label="Close development details" className="absolute inset-0 cursor-default bg-black/60" onClick={onClose}/><aside className="relative h-dvh w-full max-w-[720px] overflow-y-auto bg-white px-6 pb-10 pt-5 shadow-2xl sm:px-10"><header className="flex items-center justify-between border-b border-line pb-4"><button onClick={onClose} className="flex items-center gap-3 font-display text-2xl font-semibold text-[#0E1C2F] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold"><span className="rotate-180"><Icon name="arrow" size={20}/></span><span id="development-drawer-title">Aurelia Residences</span></button><div className="flex gap-3"><button className="rounded px-2 py-1 text-sm font-semibold text-ink hover:bg-cream focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold">Share</button><button className="rounded px-2 py-1 text-sm font-semibold text-ink hover:bg-cream focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold">Save</button></div></header><div className="pt-20"><div className="relative overflow-hidden rounded"><Image src="/figma/developments/marisol-detail.png" alt="Aurelia Residences at sunset" width={1200} height={600} priority className="h-auto w-full object-cover"/><span className="absolute bottom-4 left-4 rounded bg-[#168b43] px-3 py-1.5 text-[11px] font-semibold tracking-[.16em] text-white">PUBLISHED</span></div><p className="mt-6 text-base text-gold">Quick Preview</p><h2 className="mt-2 font-display text-5xl font-bold leading-none text-[#0E1C2F]">Aurelia Residences</h2><p className="mt-2 flex items-center gap-1.5 text-base text-[#44474C]"><span className="text-gold">⌖</span> Edgewater, Miami</p><section className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2"><Fact icon="activity" label="Starting price" value="$1.8M"/><Fact icon="settings" label="Construction stage" value="Pre-Construction"/><Fact icon="document" label="Delivery" value="Q2 2027"/><Fact icon="users" label="Developer" value="Marquis Development"/></section><section className="mt-6 rounded border border-line p-8"><p className="text-center font-inter font-semibold text-gold">Quick Statistics</p><div className="mt-7 grid grid-cols-3 gap-3 text-center"><Statistic value="62%" label="Sales"/><Statistic value="312" label="Units"/><Statistic value="2,180" label="Avg Sf"/></div></section><div className="mt-10 grid gap-3"><button className="h-12 rounded bg-gold font-inter font-semibold text-white transition-colors hover:bg-[#ad8b1f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2">Edit Development</button><button className="h-12 rounded border-2 border-gold font-inter font-semibold text-gold transition-colors hover:bg-[#fffdf6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2">View Website</button></div></div></aside></div>;
+const money = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  maximumFractionDigits: 0,
+});
+
+export function DevelopmentDetailDrawer({
+  id,
+  onClose,
+}: {
+  id: string;
+  onClose: () => void;
+}) {
+  const { data: development, isLoading, error } = useDevelopment(id);
+  useEffect(() => {
+    const close = (event: KeyboardEvent) => event.key === "Escape" && onClose();
+    window.addEventListener("keydown", close);
+    return () => window.removeEventListener("keydown", close);
+  }, [onClose]);
+  return (
+    <div
+      className="fixed inset-0 z-50 flex justify-end"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="development-drawer-title"
+    >
+      <button
+        aria-label="Close development details"
+        className="absolute inset-0 bg-black/60"
+        onClick={onClose}
+      />
+      <aside className="relative h-dvh w-full max-w-[720px] overflow-y-auto bg-white px-6 pb-10 pt-5 shadow-2xl sm:px-10">
+        <header className="flex items-center border-b border-line pb-4">
+          <button
+            onClick={onClose}
+            className="flex min-h-11 items-center gap-3 font-display text-2xl font-semibold text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold"
+          >
+            <span className="rotate-180">
+              <Icon name="arrow" size={20} />
+            </span>
+            <span id="development-drawer-title">
+              {development?.developmentName ?? "Development details"}
+            </span>
+          </button>
+        </header>
+        {isLoading && (
+          <p className="py-16 text-center text-muted" aria-live="polite">
+            Loading development…
+          </p>
+        )}
+        {error && (
+          <p
+            role="alert"
+            className="mt-6 rounded border border-red-200 bg-red-50 px-4 py-3 text-danger"
+          >
+            {error.message}
+          </p>
+        )}
+        {development && (
+          <div className="pt-8">
+            <Image
+              src={development.heroImage}
+              alt={development.developmentName}
+              width={1200}
+              height={600}
+              className="h-auto w-full rounded object-cover"
+              priority
+            />
+            <p className="mt-6 text-base text-gold">{development.city}</p>
+            <h2 className="mt-2 font-display text-4xl font-bold text-ink">
+              {development.developmentName}
+            </h2>
+            <p className="mt-2 text-muted">{development.address}</p>
+            <section className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Fact
+                label="Starting price"
+                value={money.format(development.startingPrice)}
+              />
+              <Fact
+                label="Construction stage"
+                value={development.constructionStage}
+              />
+              <Fact label="Delivery" value={development.deliveryYear} />
+              <Fact label="Developer" value={development.developer} />
+            </section>
+            <section className="mt-6 rounded border border-line p-6">
+              <h3 className="font-inter text-lg font-semibold text-ink">
+                Project overview
+              </h3>
+              <p className="mt-3 whitespace-pre-wrap leading-7 text-muted">
+                {development.projectOverview}
+              </p>
+            </section>
+            <section className="mt-6 rounded border border-line p-6">
+              <h3 className="font-inter text-lg font-semibold text-ink">
+                Residences
+              </h3>
+              <div className="mt-4 space-y-3">
+                {development.residences.map((residence, index) => (
+                  <div
+                    key={`${residence.residenceType}-${index}`}
+                    className="flex flex-wrap justify-between gap-2 border-b border-line pb-3 last:border-0 last:pb-0"
+                  >
+                    <span className="font-semibold">
+                      {residence.residenceType} · {residence.bedrooms} bed
+                    </span>
+                    <span className="text-muted">
+                      {money.format(residence.startingPrice)} ·{" "}
+                      {residence.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </div>
+        )}
+      </aside>
+    </div>
+  );
 }
 
-function Fact({ icon, label, value }: { icon: "activity" | "settings" | "document" | "users"; label: string; value: string }) { return <article className="min-h-[136px] rounded border border-line p-6"><span className="text-gold"><Icon name={icon} size={19}/></span><p className="mt-4 text-base text-[#44474C]">{label}</p><p className="mt-1 font-inter text-2xl text-[#0E1C2F]">{value}</p></article>; }
-function Statistic({ value, label }: { value: string; label: string }) { return <div><p className="font-display text-4xl font-bold text-[#0E1C2F]">{value}</p><p className="mt-2 text-base text-[#44474C]">{label}</p></div>; }
+function Fact({ label, value }: { label: string; value: string }) {
+  return (
+    <article className="rounded border border-line p-5">
+      <p className="text-sm text-muted">{label}</p>
+      <p className="mt-1 font-inter text-xl font-semibold capitalize text-ink">
+        {value}
+      </p>
+    </article>
+  );
+}

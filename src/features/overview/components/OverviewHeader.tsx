@@ -1,50 +1,5 @@
-import Image from "next/image";
+"use client";
+import { useEffect, useState } from "react";
 import { Icon } from "@/components/ui/icon";
-
-export function OverviewHeader({
-  title = "Good Morning, Admin",
-  description = "Here’s what’s happening across your portfolio today.",
-  action,
-}: {
-  title?: string;
-  description?: string;
-  action?: React.ReactNode;
-}) {
-  return (
-    <header className="dashboard-header sticky top-0 z-10 flex min-h-[88px] items-center justify-between gap-5 border-b border-line bg-white/95 px-5 py-4 backdrop-blur-md sm:px-8">
-      <div>
-        <h1 className="font-inter text-xl font-normal text-ink sm:text-2xl">
-          {title}
-        </h1>
-        <p className="mt-1 text-sm text-muted sm:text-base">{description}</p>
-      </div>
-      <div className="flex shrink-0 items-center gap-3 sm:gap-4">
-        <label className="hidden h-11 w-[360px] items-center gap-2 rounded-full border border-line px-4 text-muted md:flex">
-          <Icon name="activity" size={15} />
-          <span className="sr-only">Search</span>
-          <input
-            className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-[#9B9B9B]"
-            placeholder="Search developments, articles, inquiries..."
-          />
-        </label>
-        {action}
-        <button
-          aria-label="Open account menu"
-          className="hidden h-11 items-center gap-2 rounded-full border border-line px-2.5 transition-colors hover:bg-cream focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold xl:flex"
-        >
-          <Image
-            className="size-7 rounded-full object-cover"
-            src="/figma/image-1.jpeg"
-            alt=""
-            width={28}
-            height={28}
-          />
-          <span className="font-inter text-base">Brett F.</span>
-          <span className="text-muted" aria-hidden="true">
-            ⌄
-          </span>
-        </button>
-      </div>
-    </header>
-  );
-}
+type Admin={name:string;role:string};
+export function OverviewHeader({title="Good Morning, Admin",description="Here’s what’s happening across your portfolio today.",action}:{title?:string;description?:string;action?:React.ReactNode}){const[admin,setAdmin]=useState<Admin|null>(null);useEffect(()=>{fetch("/api/settings/profile").then(r=>r.ok?r.json():null).then(p=>setAdmin(p?.data??null)).catch(()=>setAdmin(null))},[]);const initials=admin?.name?.split(" ").map(x=>x[0]).join("").slice(0,2).toUpperCase()||"AD";return <header className="dashboard-header sticky top-0 z-10 flex min-h-[88px] items-center justify-between gap-5 border-b border-line bg-white/95 px-5 py-4 backdrop-blur-md sm:px-8"><div><h1 className="font-inter text-xl font-normal text-ink sm:text-2xl">{title}</h1><p className="mt-1 text-sm text-muted sm:text-base">{description}</p></div><div className="flex shrink-0 items-center gap-3 sm:gap-4"><label className="hidden h-11 w-[360px] items-center gap-2 rounded-full border border-line px-4 text-muted md:flex"><Icon name="activity" size={15}/><span className="sr-only">Search</span><input className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-[#9B9B9B]" placeholder="Search developments, articles, inquiries..."/></label>{action}<button aria-label="Open account menu" className="hidden h-11 items-center gap-2 rounded-full border border-line px-2.5 transition-colors hover:bg-cream focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold xl:flex"><span className="grid size-7 place-items-center rounded-full bg-[#25333d] text-xs font-bold text-white">{initials}</span><span className="font-inter text-base">{admin?.name||"Administrator"}</span><span className="text-muted" aria-hidden="true">⌄</span></button></div></header>}

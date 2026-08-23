@@ -1,0 +1,4 @@
+import { NextRequest, NextResponse } from "next/server";
+const backendUrl=()=>process.env.BACKEND_API_URL??process.env.NEXT_PUBLIC_API_URL;
+async function forward(request:NextRequest,method:"GET"|"POST"){const base=backendUrl();if(!base)return NextResponse.json({success:false,message:"BACKEND_API_URL is not configured"},{status:500});const token=request.cookies.get("zakers_admin_session")?.value;const response=await fetch(`${base}/neighbourhoods${request.nextUrl.search}`,{method,headers:{"Content-Type":"application/json",...(token?{Authorization:`Bearer ${token}`}:{})},...(method==="POST"?{body:await request.text()}:{}),cache:"no-store"});return NextResponse.json(await response.json(),{status:response.status});}
+export const GET=(request:NextRequest)=>forward(request,"GET"); export const POST=(request:NextRequest)=>forward(request,"POST");
