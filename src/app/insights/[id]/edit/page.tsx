@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Icon } from "@/components/ui/icon";
 import { OverviewSidebar } from "@/features/overview/components/OverviewSidebar";
-import { useState, FormEvent } from "react";
+import { useState, FormEvent, useEffect, use } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 
@@ -14,9 +14,12 @@ import "react-quill-new/dist/quill.snow.css";
 
 const inputClass = "h-[54px] w-full rounded border border-line px-[17px] text-base text-ink outline-none transition-shadow placeholder:text-[#9b9b9b] focus:ring-2 focus:ring-gold/30";
 
-export function AddArticlePage() {
+export default function EditArticle({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
   const router = useRouter();
+  
   const [loading, setLoading] = useState(false);
+  const [fetching, setFetching] = useState(true);
   const [message, setMessage] = useState("");
   
   const [title, setTitle] = useState("");
@@ -25,20 +28,37 @@ export function AddArticlePage() {
   const [articleContent, setArticleContent] = useState("");
   const [featureImage, setFeatureImage] = useState("");
 
+  useEffect(() => {
+    const fetchArticle = async () => {
+      try {
+        const res = await fetch(`/api/articles/${id}`);
+        const data = await res.json();
+        if (data.success && data.data) {
+          const article = data.data;
+          setTitle(article.title);
+          setAuthorName(article.authorName);
+          // Format date for date input (YYYY-MM-DD)
+          const date = new Date(article.publishDate);
+          setPublishDate(date.toISOString().split("T")[0]);
+          setArticleContent(article.articleContent);
+          setFeatureImage(article.featureImage);
+        }
+      } catch (err) {
+        console.error(err);
+        setMessage("Failed to load article details.");
+      } finally {
+        setFetching(false);
+      }
+    };
+    fetchArticle();
+  }, [id]);
+
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files?.[0]) return;
     const file = e.target.files[0];
-    const formData = new FormData();
-    formData.append("image", file);
     
     try {
-      // Assuming there's an upload endpoint we can use, or you can implement one.
-      // For now we will mock the URL or you can implement upload.
       setFeatureImage(URL.createObjectURL(file)); 
-      // Replace with actual API upload logic if available, like:
-      // const res = await fetch('/api/uploads/images', { method: 'POST', body: formData });
-      // const json = await res.json();
-      // setFeatureImage(json.data.url);
     } catch (err) {
       console.error(err);
     }
@@ -55,11 +75,11 @@ export function AddArticlePage() {
         authorName,
         publishDate: new Date(publishDate).toISOString(),
         articleContent,
-        featureImage: featureImage || "https://placeholder.com/600x400"
+        featureImage
       };
 
-      const res = await fetch("/api/articles", {
-        method: "POST",
+      const res = await fetch(`/api/articles/${id}`, {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
@@ -67,10 +87,10 @@ export function AddArticlePage() {
       const data = await res.json();
 
       if (data.success) {
-        setMessage("Article saved successfully!");
+        setMessage("Article updated successfully!");
         setTimeout(() => router.push("/insights"), 1000);
       } else {
-        setMessage(data.message || "Failed to save article");
+        setMessage(data.message || "Failed to update article");
       }
     } catch (err: any) {
       setMessage(err.message || "An error occurred");
@@ -79,13 +99,22 @@ export function AddArticlePage() {
     }
   }
 
+  if (fetching) {
+    return (
+      <div className="min-h-dvh bg-white text-ink lg:flex">
+        <OverviewSidebar active="Insights" />
+        <div className="flex-1 grid place-items-center"><p className="text-gray-500">Loading article...</p></div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-dvh bg-white text-ink lg:flex">
       <OverviewSidebar active="Insights" />
       <div className="min-w-0 flex-1">
         <header className="flex min-h-[89px] items-center justify-between border-b border-line bg-white/90 px-5 py-4 backdrop-blur-md sm:px-8">
           <div>
-            <h1 className="font-inter text-2xl leading-7">Insights</h1>
+            <h1 className="font-inter text-2xl leading-7">Edit Article</h1>
             <p className="mt-2 text-base text-muted">Manage all market intelligence articles.</p>
           </div>
           <Link href="/insights" className="rounded border-2 border-gold px-5 py-2.5 font-inter text-sm font-semibold text-gold transition-colors hover:bg-[#fffaf0]">
@@ -128,7 +157,7 @@ export function AddArticlePage() {
                 )}
                 <label className="flex min-h-40 flex-1 cursor-pointer flex-col items-center justify-center rounded border border-dashed border-line p-6 text-center text-muted">
                   <Icon name="plus" size={20} />
-                  <span className="mt-2 font-inter font-semibold text-ink">Upload cover image</span>
+                  <span className="mt-2 font-inter font-semibold text-ink">Change cover image</span>
                   <span className="mt-1 text-sm">PNG, JPG or WebP</span>
                   <input className="sr-only" type="file" accept="image/png,image/jpeg,image/webp" onChange={handleImageUpload} />
                 </label>
@@ -154,7 +183,7 @@ export function AddArticlePage() {
                 Cancel
               </Link>
               <button disabled={loading} type="submit" className="rounded bg-gold px-8 py-4 font-inter font-semibold text-white transition-colors hover:bg-[#ad8a20] disabled:opacity-50">
-                {loading ? "Saving..." : "Save Article"}
+                {loading ? "Updating..." : "Update Article"}
               </button>
             </footer>
           </form>
@@ -163,4 +192,3 @@ export function AddArticlePage() {
     </div>
   );
 }
-
