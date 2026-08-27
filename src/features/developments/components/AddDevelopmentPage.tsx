@@ -1,37 +1,732 @@
 "use client";
+
 import Image from "next/image";
 import Link from "next/link";
 import { ChangeEvent, FormEvent, ReactNode, useRef, useState } from "react";
 import { OverviewHeader } from "@/features/overview/components/OverviewHeader";
 import { OverviewSidebar } from "@/features/overview/components/OverviewSidebar";
+import { useNeighborhoods } from "@/features/neighborhoods/hooks/use-neighborhoods";
 import { useCreateDevelopment } from "../hooks/use-developments";
-import type { DevelopmentPayload } from "../types/development.types";
+import { AdditionalDevelopmentSections } from "./AdditionalDevelopmentSections";
+import type {
+  ConstructionStage,
+  DevelopmentPayload,
+} from "../types/development.types";
 
-type ImageItem={id:string;url:string}; type Plan={id:string;residenceType:string;bedrooms:string;bathrooms:string;interiorSize:string;terraceSize:string;startingPrice:string;status:"available"|"sold";floorPlan:string}; type Fact={id:string;label:string;value:string;description:string}; type Story={id:string;title:string;body:string;image:string;imagePosition:"left"|"right"}; type Card={id:string;title:string;description:string};
-const id=()=>crypto.randomUUID(), plan=():Plan=>({id:id(),residenceType:"",bedrooms:"",bathrooms:"",interiorSize:"",terraceSize:"",startingPrice:"",status:"available",floorPlan:""}), fact=():Fact=>({id:id(),label:"",value:"",description:""}), card=():Card=>({id:id(),title:"",description:""});
-const input="mt-2 h-11 w-full rounded border border-line bg-white px-3 text-sm outline-none focus:border-gold focus:ring-2 focus:ring-gold/20", area="mt-2 min-h-24 w-full rounded border border-line bg-white p-3 text-sm outline-none focus:border-gold focus:ring-2 focus:ring-gold/20", split=(v:string)=>v.split(",").map(x=>x.trim()).filter(Boolean);
-const amenityOptions=["swimming pool","spa","fitness center","yoga studio","business center","private lounge","restaurant","concierge","pet friendly","parking","private marina","childrens area","outdoor kitchen","wine lounge","game room"] as const;
-function isMapUrl(value:string){try{const url=new URL(value);const host=url.hostname.toLowerCase();return url.protocol==="https:"&&(host.includes("google")||host.includes("maps")||host.includes("mapbox")||host.includes("openstreetmap"));}catch{return false}}
+type UploadedImage = { id: string; url: string };
+type ProgressStep = "Planning" | "Construction" | "Completing" | "Delivered";
+type FeatureCard = {
+  id: string;
+  title: string;
+  description: string;
+  image: string;
+};
+const makeId = () => crypto.randomUUID();
+const makeFeature = (): FeatureCard => ({
+  id: makeId(),
+  title: "",
+  description: "",
+  image: "",
+});
+const progressSteps: ProgressStep[] = [
+  "Planning",
+  "Construction",
+  "Completing",
+  "Delivered",
+];
+const inputClass =
+  "mt-2 h-12 w-full rounded-lg border border-line bg-white px-4 text-sm text-ink outline-none transition focus:border-gold focus:ring-2 focus:ring-gold/20";
+const areaClass =
+  "mt-2 min-h-28 w-full resize-y rounded-lg border border-line bg-white p-4 text-sm text-ink outline-none transition focus:border-gold focus:ring-2 focus:ring-gold/20";
+const stageMap: Record<ProgressStep, ConstructionStage> = {
+  Planning: "pre-construction",
+  Construction: "under construction",
+  Completing: "under construction",
+  Delivered: "move in ready",
+};
 
-export function AddDevelopmentPage(){
- const create=useCreateDevelopment(),fileInput=useRef<HTMLInputElement>(null);
- const [images,setImages]=useState<ImageItem[]>([]),[plans,setPlans]=useState<Plan[]>([plan()]),[facts,setFacts]=useState<Fact[]>([fact()]),[stories,setStories]=useState<Story[]>([]),[highlights,setHighlights]=useState<Card[]>([]),[amenityCards,setAmenityCards]=useState<Card[]>([]),[uploading,setUploading]=useState(false),[message,setMessage]=useState("");
- const [f,setF]=useState({developmentName:"",propertySlug:"",selectedNeighbourhood:"",address:"",city:"",startingPrice:"",constructionStage:"pre-construction",deliveryYear:"",developer:"",pricePerSqft:"",bedrooms:"",stories:"",totalResidencies:"",sizeRange:"",shortIntroduction:"",projectOverview:"",amenities:"",category:"luxury",features:"",depositStructure:"",salesProgress:"",rentalPolicy:"",mapEmbedUrl:"",locationTitle:"",locationDescription:"",amenitiesTitle:"",amenitiesDescription:"",tourTitle:"",tourDescription:"",agentName:"",agentTitle:"",agentBio:"",agentPhone:"",agentEmail:""});
- const set=(k:keyof typeof f,v:string)=>setF(o=>({...o,[k]:v})), image=(i:number)=>images[i]?.url||"";
- const mapError=f.mapEmbedUrl&&!isMapUrl(f.mapEmbedUrl)?"Enter a valid map URL from Google Maps, Mapbox, or OpenStreetMap.":"";
- const toggleAmenity=(option:string,checked:boolean)=>{const selected=split(f.amenities);set("amenities",(checked?[...selected,option]:selected.filter(item=>item!==option)).join(","));};
- async function upload(e:ChangeEvent<HTMLInputElement>){if(!e.target.files?.length)return;setUploading(true);setMessage("");try{const d=new FormData();[...e.target.files].forEach(x=>d.append("images",x));const r=await fetch("/api/uploads/images",{method:"POST",body:d}),p=await r.json();if(!r.ok)throw new Error(p.message||"Image upload failed");setImages(o=>[...o,...p.data.map((x:{url:string})=>({id:id(),url:x.url}))]);}catch(x){setMessage(x instanceof Error?x.message:"Image upload failed")}finally{setUploading(false);e.target.value=""}}
- async function submit(e:FormEvent){e.preventDefault();setMessage("");if(mapError)return setMessage(mapError);if(!image(0))return setMessage("Upload at least one image; the first is the hero image.");const payload:DevelopmentPayload={...f,startingPrice:Number(f.startingPrice),pricePerSqft:Number(f.pricePerSqft),stories:Number(f.stories),totalResidencies:Number(f.totalResidencies),constructionStage:f.constructionStage as DevelopmentPayload["constructionStage"],heroImage:image(0),galleryImages:images.map((x,index)=>({url:x.url,index})),amenities:split(f.amenities),category:split(f.category) as DevelopmentPayload["category"],features:split(f.features),residences:plans.map(({id,startingPrice,...x})=>({...x,startingPrice:Number(startingPrice)})),detailPage:{keyFacts:facts.filter(x=>x.label&&x.value).map(({id,...x})=>x),editorialSections:stories.filter(x=>x.title&&x.body).map(({id,...x})=>x),highlights:highlights.filter(x=>x.title).map(({id,...x})=>x),gallery:images.slice(1).map((x,index)=>({url:x.url,index})),location:{title:f.locationTitle||undefined,description:f.locationDescription||undefined,mapEmbedUrl:f.mapEmbedUrl||undefined,neighbourhoodImages:images.slice(1,5).map((x,index)=>({url:x.url,index}))},amenitiesSection:{title:f.amenitiesTitle||undefined,description:f.amenitiesDescription||undefined,coverImage:image(1)||undefined,items:amenityCards.filter(x=>x.title).map(({id,title,description})=>({name:title,description:description||undefined}))},tourCta:{title:f.tourTitle||undefined,description:f.tourDescription||undefined,backgroundImage:image(2)||image(0),buttonLabel:"Schedule a tour",buttonUrl:"/contact"},agent:f.agentName?{name:f.agentName,title:f.agentTitle||undefined,bio:f.agentBio||undefined,phone:f.agentPhone||undefined,email:f.agentEmail||undefined,photo:image(3)||undefined}:undefined}};try{await create.mutateAsync(payload);setMessage("Development published successfully.")}catch(x){setMessage(x instanceof Error?x.message:"Could not publish development")}}
- return <div className="min-h-dvh bg-canvas text-ink lg:flex"><OverviewSidebar active="Developments"/><div className="min-w-0 flex-1"><OverviewHeader title="Add Development" description="Create each section of the public development-detail page."/><main className="mx-auto max-w-[1620px] px-5 py-6 sm:px-8"><form onSubmit={submit} className="overflow-hidden rounded border border-line bg-white">
- <Section title="Project essentials" hint="Hero details, headline, price and key project information."><div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{([["developmentName","Development name"],["propertySlug","Property slug"],["selectedNeighbourhood","Neighbourhood ID"],["developer","Developer"],["address","Address"],["city","City"],["startingPrice","Starting price"],["pricePerSqft","Price per sqft"],["deliveryYear","Delivery year"],["bedrooms","Bedroom range"],["stories","Stories"],["totalResidencies","Total residences"],["sizeRange","Size range"]] as [keyof typeof f,string][]).map(([k,l])=><Field key={k} label={l}><input required={!["bedrooms","sizeRange"].includes(k)} value={f[k]} onChange={e=>set(k,e.target.value)} className={input} type={["startingPrice","pricePerSqft","stories","totalResidencies"].includes(k)?"number":"text"} min={["startingPrice","pricePerSqft","stories","totalResidencies"].includes(k)?0:undefined} step={["startingPrice","pricePerSqft"].includes(k)?"0.01":"1"} inputMode={["startingPrice","pricePerSqft","stories","totalResidencies"].includes(k)?"decimal":undefined}/></Field>)}<Field label="Construction stage"><select value={f.constructionStage} onChange={e=>set("constructionStage",e.target.value)} className={input}><option value="pre-construction">Pre-construction</option><option value="under construction">Under construction</option><option value="move in ready">Move in ready</option></select></Field></div><Field label="Short introduction" className="mt-5"><textarea required value={f.shortIntroduction} onChange={e=>set("shortIntroduction",e.target.value)} className={area}/></Field><Field label="Project overview" className="mt-5"><textarea required value={f.projectOverview} onChange={e=>set("projectOverview",e.target.value)} className={area}/></Field></Section>
- <Section title="Cloudinary media library" hint="First image becomes the hero; other uploads power the gallery, amenities, tour and agent sections."><input ref={fileInput} type="file" accept="image/png,image/jpeg,image/webp" multiple className="sr-only" onChange={upload}/><button type="button" onClick={()=>fileInput.current?.click()} disabled={uploading} className="min-h-11 rounded bg-gold px-5 text-sm font-semibold text-white disabled:opacity-60">{uploading?"Uploading…":"Upload images"}</button><div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{images.map((x,i)=><article key={x.id} className="relative overflow-hidden rounded border border-line"><Image src={x.url} alt={"Uploaded development image "+(i+1)} width={640} height={480} className="aspect-[4/3] w-full object-cover"/><span className="absolute left-2 top-2 rounded bg-ink px-2 py-1 text-xs text-white">{i===0?"Hero":"Media "+(i+1)}</span><button aria-label={"Remove image "+(i+1)} type="button" onClick={()=>setImages(o=>o.filter(y=>y.id!==x.id))} className="absolute right-2 top-2 min-h-11 rounded bg-white px-3 text-xs font-semibold text-danger">Remove</button></article>)}</div></Section>
- <Section title="Facts, stories & highlights" hint="The key fact row and image/text editorial blocks shown in the supplied design."><Repeater label="Key facts" add="Add fact" items={facts} setItems={setFacts} create={fact}>{(x,update)=><div className="grid gap-3 md:grid-cols-3"><input value={x.label} onChange={e=>update({label:e.target.value})} className={input} placeholder="Label"/><input value={x.value} onChange={e=>update({value:e.target.value})} className={input} placeholder="Value"/><input value={x.description} onChange={e=>update({description:e.target.value})} className={input} placeholder="Optional description"/></div>}</Repeater><Repeater label="Editorial sections" add="Add story section" items={stories} setItems={setStories} create={()=>({id:id(),title:"",body:"",image:image(1),imagePosition:"right" as const})}>{(x,update)=><div className="grid gap-3 md:grid-cols-2"><input value={x.title} onChange={e=>update({title:e.target.value})} className={input} placeholder="Section title"/><select value={x.image} onChange={e=>update({image:e.target.value})} className={input}><option value="">No image</option>{images.map((a,i)=><option key={a.id} value={a.url}>Media {i+1}</option>)}</select><textarea value={x.body} onChange={e=>update({body:e.target.value})} className={area+" md:col-span-2"} placeholder="Long-form story"/><select value={x.imagePosition} onChange={e=>update({imagePosition:e.target.value as "left"|"right"})} className={input}><option value="right">Image right</option><option value="left">Image left</option></select></div>}</Repeater><Repeater label="Highlights" add="Add highlight" items={highlights} setItems={setHighlights} create={card}>{(x,update)=><div className="grid gap-3 md:grid-cols-2"><input value={x.title} onChange={e=>update({title:e.target.value})} className={input} placeholder="Highlight title"/><input value={x.description} onChange={e=>update({description:e.target.value})} className={input} placeholder="Description"/></div>}</Repeater></Section>
- <Section title="Availability & floor plans" hint="Each floor plan becomes an availability-table row."><Repeater label="Floor plans" add="Add another floor plan" items={plans} setItems={setPlans} create={plan}>{(x,update)=><div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">{(["residenceType","bedrooms","bathrooms","interiorSize","terraceSize","startingPrice","floorPlan"] as (keyof Omit<Plan,"id"|"status">)[]).map(k=><input key={k} value={x[k]} onChange={e=>update({[k]:e.target.value})} className={input} placeholder={k.replace(/([A-Z])/g," $1")}/>) }<select value={x.status} onChange={e=>update({status:e.target.value as Plan["status"]})} className={input}><option value="available">Available</option><option value="sold">Sold</option></select></div>}</Repeater></Section>
- <Section title="Map, amenities, tour & agent" hint="Optional lower-page modules. Uploaded media is selected automatically by its order."><div className="grid gap-4 md:grid-cols-2"><Field label="Map embed URL"><input value={f.mapEmbedUrl} onChange={e=>set("mapEmbedUrl",e.target.value)} className={input} type="url" placeholder="https://www.google.com/maps/embed?..." aria-invalid={Boolean(mapError)} aria-describedby="map-url-error"/><span id="map-url-error" className="mt-2 block text-xs font-normal text-danger">{mapError}</span></Field>{([["locationTitle","Location section title"],["locationDescription","Location description"],["amenitiesTitle","Amenities section title"],["amenitiesDescription","Amenities description"],["tourTitle","Tour CTA title"],["tourDescription","Tour CTA description"],["agentName","Agent name"],["agentTitle","Agent title"],["agentPhone","Agent phone"],["agentEmail","Agent email"],["agentBio","Agent biography"]] as [keyof typeof f,string][]).map(([k,l])=><Field key={k} label={l}><input value={f[k]} onChange={e=>set(k,e.target.value)} className={input} type={k==="agentEmail"?"email":"text"}/></Field>)}</div><Repeater label="Amenity cards" add="Add amenity" items={amenityCards} setItems={setAmenityCards} create={card}>{(x,update)=><div className="grid gap-3 md:grid-cols-2"><input value={x.title} onChange={e=>update({title:e.target.value})} className={input} placeholder="Amenity name"/><input value={x.description} onChange={e=>update({description:e.target.value})} className={input} placeholder="Description"/></div>}</Repeater></Section>
- <Section title="Search filters & commercial details"><div className="grid gap-4 md:grid-cols-2"><Field label="Amenities"><div role="group" aria-describedby="amenities-help" className="mt-2 grid max-h-64 grid-cols-1 gap-2 overflow-y-auto rounded border border-line bg-white p-3 sm:grid-cols-2 xl:grid-cols-3">{amenityOptions.map(option=><label key={option} className="flex min-h-11 cursor-pointer items-center gap-3 rounded px-3 text-sm font-normal transition-colors hover:bg-gold/10"><input type="checkbox" checked={split(f.amenities).includes(option)} onChange={e=>toggleAmenity(option,e.target.checked)} className="h-4 w-4 accent-gold"/><span>{option}</span></label>)}</div><span id="amenities-help" className="mt-2 block text-xs font-normal text-muted">Select one or more amenities.</span></Field><Field label="Category"><select value={f.category} onChange={e=>set("category",e.target.value)} className={input}><option value="luxury">Luxury</option><option value="waterfront">Waterfront</option></select></Field>{([["features","Features (comma-separated)"],["depositStructure","Deposit structure"],["salesProgress","Sales progress"],["rentalPolicy","Rental policy"]] as [keyof typeof f,string][]).map(([k,l])=><Field key={k} label={l}><input required value={f[k]} onChange={e=>set(k,e.target.value)} className={input}/></Field>)}</div></Section>
- <footer className="flex flex-wrap items-center justify-between gap-4 border-t border-line px-6 py-5"><p role="status" className={message.includes("success")?"text-sm text-green-700":"text-sm text-danger"}>{message||images.length+" images · "+plans.length+" floor plans"}</p><div className="flex gap-3"><Link href="/developments" className="min-h-11 rounded border-2 border-gold px-5 py-3 text-sm font-semibold text-gold">Cancel</Link><button disabled={create.isPending||uploading} className="min-h-11 rounded bg-gold px-5 py-3 text-sm font-semibold text-white disabled:opacity-60">{create.isPending?"Publishing…":"Publish development"}</button></div></footer>
- </form></main></div></div>
+export function AddDevelopmentPage() {
+  const createDevelopment = useCreateDevelopment();
+  const {
+    data: neighborhoods = [],
+    isLoading: neighborhoodsLoading,
+    error: neighborhoodsError,
+  } = useNeighborhoods();
+  const fileInput = useRef<HTMLInputElement>(null);
+  const [images, setImages] = useState<UploadedImage[]>([]);
+  const [features, setFeatures] = useState<FeatureCard[]>([
+    makeFeature(),
+    makeFeature(),
+  ]);
+  const [progressStep, setProgressStep] = useState<ProgressStep>("Planning");
+  const [progress, setProgress] = useState("0");
+  const [uploading, setUploading] = useState(false);
+  const [uploadingFeatureId, setUploadingFeatureId] = useState<string | null>(
+    null,
+  );
+  const [message, setMessage] = useState("");
+  const [form, setForm] = useState({
+    developmentName: "",
+    selectedNeighbourhood: "",
+    address: "",
+    city: "Miami",
+    startingPrice: "",
+    deliveryYear: "",
+    totalResidencies: "",
+    stories: "",
+    height: "",
+    developer: "",
+    bedrooms: "",
+    sizeRange: "",
+    hoa: "",
+    shortIntroduction: "",
+    projectOverview: "",
+  });
+  const setField = (key: keyof typeof form, value: string) =>
+    setForm((current) => ({ ...current, [key]: value }));
+  const updateFeature = (featureId: string, patch: Partial<FeatureCard>) =>
+    setFeatures((current) =>
+      current.map((feature) =>
+        feature.id === featureId ? { ...feature, ...patch } : feature,
+      ),
+    );
+  async function uploadImages(event: ChangeEvent<HTMLInputElement>) {
+    if (!event.target.files?.length) return;
+    setUploading(true);
+    setMessage("");
+    try {
+      const data = new FormData();
+      [...event.target.files].forEach((file) => data.append("images", file));
+      const response = await fetch("/api/uploads/images", {
+        method: "POST",
+        body: data,
+      });
+      const payload = await response.json();
+      if (!response.ok)
+        throw new Error(payload.message || "Image upload failed");
+      setImages((current) => [
+        ...current,
+        ...payload.data.map((item: { url: string }) => ({
+          id: makeId(),
+          url: item.url,
+        })),
+      ]);
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : "Image upload failed",
+      );
+    } finally {
+      setUploading(false);
+      event.target.value = "";
+    }
+  }
+
+  async function uploadFeatureImage(featureId: string, file?: File) {
+    if (!file) return;
+    setUploadingFeatureId(featureId);
+    setMessage("");
+    try {
+      const data = new FormData();
+      data.append("images", file);
+      const response = await fetch("/api/uploads/images", {
+        method: "POST",
+        body: data,
+      });
+      const payload = await response.json();
+      if (!response.ok)
+        throw new Error(payload.message || "Feature image upload failed");
+      updateFeature(featureId, { image: payload.data[0].url });
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : "Feature image upload failed",
+      );
+    } finally {
+      setUploadingFeatureId(null);
+    }
+  }
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    setMessage("");
+    if (!images.length)
+      return setMessage("Please upload at least one project image.");
+    if (
+      features.some(
+        (feature) => !feature.title || !feature.description || !feature.image,
+      )
+    )
+      return setMessage(
+        "Complete both Project Feature cards and select an image for each one.",
+      );
+    const payload: DevelopmentPayload = {
+      developmentName: form.developmentName,
+      propertySlug: `${form.developmentName
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "")}-${Date.now()}`,
+      selectedNeighbourhood: form.selectedNeighbourhood,
+      address: form.address,
+      city: form.city,
+      startingPrice: Number(form.startingPrice),
+      constructionStage: stageMap[progressStep],
+      deliveryYear: form.deliveryYear,
+      developer: form.developer,
+      pricePerSqft: 0,
+      bedrooms: form.bedrooms,
+      stories: Number(form.stories),
+      totalResidencies: Number(form.totalResidencies),
+      sizeRange: form.sizeRange,
+      heroImage: images[0].url,
+      galleryImages: images.map((image, index) => ({ url: image.url, index })),
+      projectOverview: form.projectOverview,
+      shortIntroduction: form.shortIntroduction,
+      amenities: [],
+      category: ["luxury"],
+      features: features.map((feature) => feature.title),
+      depositStructure: "Contact for details",
+      salesProgress: `${progressStep} - ${progress}%`,
+      rentalPolicy: "Contact for details",
+      residences: [],
+      currentStage: progressStep,
+      expectedDelivery: form.deliveryYear,
+      detailPage: {
+        keyFacts: [
+          { label: "FROM", value: `$${form.startingPrice}` },
+          { label: "DELIVERY", value: form.deliveryYear },
+          { label: "Units", value: form.totalResidencies },
+          { label: "Height", value: form.height },
+          { label: "Developer", value: form.developer },
+          { label: "Bedrooms", value: form.bedrooms },
+          { label: "Size range (SF)", value: form.sizeRange },
+          { label: "HOA", value: form.hoa },
+        ],
+        gallery: images
+          .slice(1)
+          .map((image, index) => ({ url: image.url, index })),
+        editorialSections: features.map((feature, index) => ({
+          eyebrow: "Project Features",
+          title: feature.title,
+          body: feature.description,
+          image: feature.image,
+          imagePosition: index % 2 === 0 ? "right" : "left",
+        })),
+      },
+    };
+    try {
+      await createDevelopment.mutateAsync(payload);
+      setMessage("Development published successfully.");
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Could not publish development",
+      );
+    }
+  }
+
+  return (
+    <div className="min-h-dvh bg-canvas text-ink lg:flex">
+      <OverviewSidebar active="Developments" />
+      <div className="min-w-0 flex-1">
+        <OverviewHeader
+          title="Add Development"
+          description="Create a new construction project for the website."
+        />
+        <main className="mx-auto max-w-[1320px] px-5 py-7 sm:px-8">
+          <form onSubmit={submit} className="space-y-6">
+            <FormCard
+              eyebrow="Project media"
+              title="Development Images"
+              hint="Upload multiple images to Cloudinary. The first image will be used as the main cover image."
+            >
+              <input
+                ref={fileInput}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                multiple
+                className="sr-only"
+                onChange={uploadImages}
+              />
+              <button
+                type="button"
+                disabled={uploading}
+                onClick={() => fileInput.current?.click()}
+                className="min-h-12 rounded-lg bg-[#0d1b34] px-5 text-sm font-semibold text-white transition hover:bg-[#172b4d] disabled:opacity-60"
+              >
+                {uploading ? "Uploadingâ€¦" : "+ Add multiple images"}
+              </button>
+              {images.length === 0 ? (
+                <button
+                  type="button"
+                  onClick={() => fileInput.current?.click()}
+                  className="mt-5 grid min-h-44 w-full place-items-center rounded-xl border-2 border-dashed border-line bg-[#fffdf8] px-6 text-center text-sm text-muted hover:border-gold"
+                >
+                  <span>
+                    <b className="block text-base text-ink">
+                      Drop or select project images
+                    </b>
+                    <span className="mt-1 block">PNG, JPG or WebP</span>
+                  </span>
+                </button>
+              ) : (
+                <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  {images.map((image, index) => (
+                    <article
+                      key={image.id}
+                      className="relative overflow-hidden rounded-xl border border-line bg-white"
+                    >
+                      <Image
+                        src={image.url}
+                        alt={`Project image ${index + 1}`}
+                        width={640}
+                        height={480}
+                        className="aspect-[4/3] w-full object-cover"
+                      />
+                      <span className="absolute left-2 top-2 rounded-full bg-[#0d1b34] px-3 py-1 text-xs font-semibold text-white">
+                        {index === 0 ? "Cover" : `Image ${index + 1}`}
+                      </span>
+                      <button
+                        type="button"
+                        aria-label={`Remove image ${index + 1}`}
+                        onClick={() =>
+                          setImages((current) =>
+                            current.filter((item) => item.id !== image.id),
+                          )
+                        }
+                        className="absolute right-2 top-2 min-h-9 rounded-full bg-white px-3 text-xs font-semibold text-danger shadow"
+                      >
+                        Remove
+                      </button>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </FormCard>
+
+            <FormCard
+              eyebrow="Card name"
+              title="New Construction"
+              hint="Add the key information visitors will see at the top of the development page."
+            >
+              <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                <Field label="Title">
+                  <input
+                    required
+                    value={form.developmentName}
+                    onChange={(e) =>
+                      setField("developmentName", e.target.value)
+                    }
+                    className={inputClass}
+                    placeholder="Cipriani Residences Brickell"
+                  />
+                </Field>
+                <Field label="Neighbourhood">
+                  <select
+                    required
+                    value={form.selectedNeighbourhood}
+                    onChange={(e) =>
+                      setField("selectedNeighbourhood", e.target.value)
+                    }
+                    className={inputClass}
+                    disabled={neighborhoodsLoading}
+                  >
+                    <option value="">
+                      {neighborhoodsLoading
+                        ? "Loading neighbourhoodsâ€¦"
+                        : "Select a neighbourhood"}
+                    </option>
+                    {neighborhoods.map((neighborhood) => (
+                      <option key={neighborhood._id} value={neighborhood._id}>
+                        {neighborhood.title || neighborhood.name}
+                      </option>
+                    ))}
+                  </select>
+                  {neighborhoodsError && (
+                    <span className="mt-2 block text-xs font-normal text-danger">
+                      Could not load neighbourhoods.
+                    </span>
+                  )}
+                </Field>
+                <Field label="Address" className="md:col-span-2">
+                  <input
+                    required
+                    value={form.address}
+                    onChange={(e) => setField("address", e.target.value)}
+                    className={inputClass}
+                    placeholder="1420 South Miami Avenue, Miami, FL 33131"
+                  />
+                </Field>
+                <Field label="City">
+                  <input
+                    required
+                    value={form.city}
+                    onChange={(e) => setField("city", e.target.value)}
+                    className={inputClass}
+                  />
+                </Field>
+                <Field label="From">
+                  <div className="relative">
+                    <span className="absolute left-4 top-[25px] -translate-y-1/2 text-muted">
+                      $
+                    </span>
+                    <input
+                      required
+                      type="number"
+                      min="0"
+                      step="1000"
+                      value={form.startingPrice}
+                      onChange={(e) =>
+                        setField("startingPrice", e.target.value)
+                      }
+                      className={`${inputClass} pl-8`}
+                      placeholder="2150000"
+                    />
+                  </div>
+                </Field>
+                <Field label="Delivery">
+                  <input
+                    required
+                    value={form.deliveryYear}
+                    onChange={(e) => setField("deliveryYear", e.target.value)}
+                    className={inputClass}
+                    placeholder="July 2027"
+                  />
+                </Field>
+                <Field label="Units">
+                  <input
+                    required
+                    type="number"
+                    min="0"
+                    value={form.totalResidencies}
+                    onChange={(e) =>
+                      setField("totalResidencies", e.target.value)
+                    }
+                    className={inputClass}
+                    placeholder="397"
+                  />
+                </Field>
+                <Field label="Height">
+                  <input
+                    required
+                    value={form.height}
+                    onChange={(e) => setField("height", e.target.value)}
+                    className={inputClass}
+                    placeholder="80 Stories (950 ft)"
+                  />
+                </Field>
+                <Field label="Stories">
+                  <input
+                    required
+                    type="number"
+                    min="0"
+                    value={form.stories}
+                    onChange={(e) => setField("stories", e.target.value)}
+                    className={inputClass}
+                    placeholder="80"
+                  />
+                </Field>
+                <Field label="Developer">
+                  <input
+                    required
+                    value={form.developer}
+                    onChange={(e) => setField("developer", e.target.value)}
+                    className={inputClass}
+                    placeholder="Mast Capital"
+                  />
+                </Field>
+                <Field label="Bedrooms">
+                  <input
+                    required
+                    value={form.bedrooms}
+                    onChange={(e) => setField("bedrooms", e.target.value)}
+                    className={inputClass}
+                    placeholder="1 â€“ 5"
+                  />
+                </Field>
+                <Field label="Size range (SF)">
+                  <input
+                    required
+                    value={form.sizeRange}
+                    onChange={(e) => setField("sizeRange", e.target.value)}
+                    className={inputClass}
+                    placeholder="1,070 â€“ 6,093"
+                  />
+                </Field>
+                <Field label="HOA">
+                  <input
+                    required
+                    value={form.hoa}
+                    onChange={(e) => setField("hoa", e.target.value)}
+                    className={inputClass}
+                    placeholder="$1.60/sf"
+                  />
+                </Field>
+              </div>
+              <div className="mt-6 grid gap-5 md:grid-cols-2">
+                <Field label="Short introduction">
+                  <textarea
+                    required
+                    value={form.shortIntroduction}
+                    onChange={(e) =>
+                      setField("shortIntroduction", e.target.value)
+                    }
+                    className={areaClass}
+                  />
+                </Field>
+                <Field label="Project overview">
+                  <textarea
+                    required
+                    value={form.projectOverview}
+                    onChange={(e) =>
+                      setField("projectOverview", e.target.value)
+                    }
+                    className={areaClass}
+                  />
+                </Field>
+              </div>
+            </FormCard>
+
+            <FormCard
+              eyebrow="Project status"
+              title="Construction Progress"
+              hint="Choose the current milestone and set the exact completion percentage."
+            >
+              <div className="grid gap-3 md:grid-cols-4">
+                {progressSteps.map((step, index) => {
+                  const complete = index <= progressSteps.indexOf(progressStep);
+                  return (
+                    <button
+                      key={step}
+                      type="button"
+                      onClick={() => setProgressStep(step)}
+                      className={`min-h-24 rounded-xl border p-4 text-left transition ${complete ? "border-gold bg-gold/10" : "border-line bg-white hover:border-gold/50"}`}
+                    >
+                      <span
+                        className={`grid size-8 place-items-center rounded-full text-sm font-bold ${complete ? "bg-gold text-white" : "bg-[#edf0f2] text-muted"}`}
+                      >
+                        {index + 1}
+                      </span>
+                      <span className="mt-3 block text-sm font-semibold">
+                        {step}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="mt-6 rounded-xl bg-[#fffdf8] p-5">
+                <div className="flex items-center justify-between gap-4">
+                  <label
+                    htmlFor="construction-progress"
+                    className="text-sm font-semibold"
+                  >
+                    Completion percentage
+                  </label>
+                  <output className="text-2xl font-bold text-gold">
+                    {progress}%
+                  </output>
+                </div>
+                <input
+                  id="construction-progress"
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={progress}
+                  onChange={(e) => setProgress(e.target.value)}
+                  className="mt-4 h-2 w-full cursor-pointer accent-gold"
+                />
+                <div className="mt-2 flex justify-between text-xs text-muted">
+                  <span>0%</span>
+                  <span>100%</span>
+                </div>
+              </div>
+            </FormCard>
+
+            <FormCard
+              eyebrow="Content section"
+              title="Project Features"
+              hint="The first card shows description left and image right; the second automatically reverses that layout."
+            >
+              <div className="space-y-5">
+                {features.map((feature, index) => (
+                  <article
+                    key={feature.id}
+                    className="overflow-hidden rounded-xl border border-line bg-[#fffdf8]"
+                  >
+                    <div className="border-b border-line px-5 py-4">
+                      <p className="text-xs font-semibold uppercase tracking-[.14em] text-gold">
+                        Feature card {index + 1}
+                      </p>
+                      <p className="mt-1 text-sm text-muted">
+                        {index === 0
+                          ? "Description left Â· Image right"
+                          : "Image left Â· Description right"}
+                      </p>
+                    </div>
+                    <div
+                      className={`grid gap-5 p-5 md:grid-cols-2 md:p-6 ${index === 1 ? "md:[&>*:first-child]:order-2" : ""}`}
+                    >
+                      <div>
+                        <Field label="Feature title">
+                          <input
+                            required
+                            value={feature.title}
+                            onChange={(e) =>
+                              updateFeature(feature.id, {
+                                title: e.target.value,
+                              })
+                            }
+                            className={inputClass}
+                            placeholder={
+                              index === 0
+                                ? "Signature residences"
+                                : "Elevated amenities"
+                            }
+                          />
+                        </Field>
+                        <Field label="Description" className="mt-4">
+                          <textarea
+                            required
+                            value={feature.description}
+                            onChange={(e) =>
+                              updateFeature(feature.id, {
+                                description: e.target.value,
+                              })
+                            }
+                            className={`${areaClass} min-h-40`}
+                          />
+                        </Field>
+                      </div>
+                      <div>
+                        <Field label="Feature image">
+                          <input
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp"
+                            required={!feature.image}
+                            onChange={(e) => {
+                              void uploadFeatureImage(
+                                feature.id,
+                                e.target.files?.[0],
+                              );
+                              e.target.value = "";
+                            }}
+                            className="mt-2 block min-h-12 w-full cursor-pointer rounded-lg border border-line bg-white text-sm text-muted file:mr-4 file:min-h-12 file:border-0 file:bg-[#0d1b34] file:px-4 file:text-sm file:font-semibold file:text-white hover:file:bg-[#172b4d]"
+                          />
+                        </Field>
+                        {uploadingFeatureId === feature.id ? (
+                          <div className="mt-4 grid aspect-[4/3] place-items-center rounded-lg border border-line bg-white text-sm text-muted">
+                            Uploading imageâ€¦
+                          </div>
+                        ) : feature.image ? (
+                          <div className="relative mt-4">
+                            <Image
+                              src={feature.image}
+                              alt={feature.title || `Feature ${index + 1}`}
+                              width={800}
+                              height={560}
+                              className="aspect-[4/3] w-full rounded-lg object-cover"
+                            />
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateFeature(feature.id, { image: "" })
+                              }
+                              className="absolute right-3 top-3 min-h-9 rounded-full bg-white px-3 text-xs font-semibold text-danger shadow"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="mt-4 grid aspect-[4/3] place-items-center rounded-lg border-2 border-dashed border-line bg-white text-sm text-muted">
+                            Upload a feature image
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </FormCard>
+
+            <AdditionalDevelopmentSections />
+
+          <footer className="sticky bottom-4 z-10 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-line bg-white/95 px-6 py-5 shadow-lg backdrop-blur">
+              <p
+                role="status"
+                className={
+                  message.includes("successfully")
+                    ? "text-sm font-medium text-green-700"
+                    : "text-sm font-medium text-danger"
+                }
+              >
+                {message || `${images.length} images Â· ${progress}% complete`}
+              </p>
+              <div className="ml-auto flex gap-3">
+                <Link
+                  href="/developments"
+                  className="min-h-11 rounded-lg border border-gold px-5 py-3 text-sm font-semibold text-gold"
+                >
+                  Cancel
+                </Link>
+                <button
+                  disabled={
+                    createDevelopment.isPending ||
+                    uploading ||
+                    Boolean(uploadingFeatureId)
+                  }
+                  className="min-h-11 rounded-lg bg-gold px-6 py-3 text-sm font-semibold text-white disabled:opacity-60"
+                >
+                  {createDevelopment.isPending
+                    ? "Publishingâ€¦"
+                    : "Publish development"}
+                </button>
+              </div>
+            </footer>
+          </form>
+        </main>
+      </div>
+    </div>
+  );
 }
-function Field({label,children,className=""}:{label:string;children:ReactNode;className?:string}){return <label className={"block text-sm font-semibold "+className}>{label}{children}</label>}
-function Section({title,hint,children}:{title:string;hint?:string;children:ReactNode}){return <section className="border-b border-line px-6 py-7 sm:px-8"><h2 className="font-display text-2xl font-bold">{title}</h2>{hint&&<p className="mt-1 text-sm text-muted">{hint}</p>}<div className="mt-5">{children}</div></section>}
-function Repeater<T extends{id:string}>({label,add,items,setItems,create,children}:{label:string;add:string;items:T[];setItems:(v:T[]|((old:T[])=>T[]))=>void;create:()=>T;children:(x:T,update:(v:Partial<T>)=>void)=>ReactNode}){return <fieldset className="mt-7"><legend className="font-semibold">{label}</legend><div className="mt-3 space-y-3">{items.map((x,i)=><div key={x.id} className="rounded border border-line p-4"><div className="flex items-center justify-between"><p className="text-xs font-semibold uppercase tracking-wide text-muted">{label} {i+1}</p>{items.length>1&&<button type="button" onClick={()=>setItems(o=>o.filter(y=>y.id!==x.id))} className="min-h-11 text-sm font-semibold text-danger">Remove</button>}</div>{children(x,next=>setItems(o=>o.map(y=>y.id===x.id?{...y,...next}:y)))}</div>)}</div><button type="button" onClick={()=>setItems(o=>[...o,create()])} className="mt-3 min-h-11 rounded border border-gold px-4 text-sm font-semibold text-gold">{add}</button></fieldset>}
+
+function Field({
+  label,
+  children,
+  className = "",
+}: {
+  label: string;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <label className={`block text-sm font-semibold ${className}`}>
+      {label}
+      {children}
+    </label>
+  );
+}
+function FormCard({
+  eyebrow,
+  title,
+  hint,
+  children,
+}: {
+  eyebrow: string;
+  title: string;
+  hint: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="rounded-xl border border-line bg-white p-6 shadow-sm sm:p-8">
+      <p className="text-xs font-semibold uppercase tracking-[.16em] text-gold">
+        {eyebrow}
+      </p>
+      <h2 className="mt-2 font-display text-2xl font-bold sm:text-3xl">
+        {title}
+      </h2>
+      <p className="mt-1 max-w-3xl text-sm text-muted">{hint}</p>
+      <div className="mt-6">{children}</div>
+    </section>
+  );
+}
+
