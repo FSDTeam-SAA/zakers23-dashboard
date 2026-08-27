@@ -1,7 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { ChangeEvent, ReactNode, useState } from "react";
+import { ChangeEvent, ReactNode, useEffect, useState } from "react";
+import type { DevelopmentPageContent } from "../types/development.types";
 
 type MoreViewImage = { id: string; url: string; name: string };
 type MarketPosition = { id: string; percentage: string; title: string; subtitle: string };
@@ -11,11 +12,18 @@ const makeId = () => crypto.randomUUID();
 const makeMarketPosition = (): MarketPosition => ({ id: makeId(), percentage: "", title: "", subtitle: "" });
 const makeInvestmentSignal = (): InvestmentSignal => ({ id: makeId(), brandName: "", title: "", subtitle: "" });
 const makeAmenityItem = (): AmenityItem => ({ id: makeId(), icon: null, title: "", subtitle: "" });
-const localImage = (file: File): MoreViewImage => ({ id: makeId(), url: URL.createObjectURL(file), name: file.name });
+async function uploadFilesToCloudinary(files: File[]): Promise<MoreViewImage[]> {
+  const data = new FormData();
+  files.forEach((file) => data.append("images", file));
+  const response = await fetch("/api/uploads/images", { method: "POST", body: data });
+  const payload = await response.json();
+  if (!response.ok || !payload.success) throw new Error(payload.message || "Image upload failed");
+  return payload.data.map((image: { url: string }, index: number) => ({ id: makeId(), url: image.url, name: files[index]?.name || `Image ${index + 1}` }));
+}
 const inputClass = "mt-2 h-12 w-full rounded-lg border border-line bg-white px-4 text-sm text-ink outline-none transition focus:border-gold focus:ring-2 focus:ring-gold/20";
 const areaClass = "mt-2 min-h-28 w-full resize-y rounded-lg border border-line bg-white p-4 text-sm text-ink outline-none transition focus:border-gold focus:ring-2 focus:ring-gold/20";
 
-export function AdditionalDevelopmentSections() {
+export function AdditionalDevelopmentSections({ initialValue, onChange }: { initialValue?: DevelopmentPageContent; onChange: (content: DevelopmentPageContent) => void }) {
   const [team, setTeam] = useState({ developer: "", architect: "", interiorDesign: "", description: "" });
   const [moreViewImages, setMoreViewImages] = useState<MoreViewImage[]>([]);
   const [marketPositions, setMarketPositions] = useState<MarketPosition[]>([makeMarketPosition()]);
@@ -29,13 +37,43 @@ export function AdditionalDevelopmentSections() {
   const [penthouse, setPenthouse] = useState({ title: "", subtitle: "" });
   const [penthouseImages, setPenthouseImages] = useState<MoreViewImage[]>([]);
   const [closingImage, setClosingImage] = useState<MoreViewImage | null>(null);
+  useEffect(() => {
+    if (!initialValue) return;
+    const imageItem = (url: string): MoreViewImage => ({ id: makeId(), url, name: "Saved image" });
+    setTeam({ developer: initialValue.team?.developer ?? "", architect: initialValue.team?.architect ?? "", interiorDesign: initialValue.team?.interiorDesign ?? "", description: initialValue.team?.description ?? "" });
+    setMoreViewImages((initialValue.moreViewImages ?? []).map(imageItem));
+    setMarketPositions(initialValue.marketPositions?.length ? initialValue.marketPositions.map((item) => ({ ...item, id: makeId() })) : [makeMarketPosition()]);
+    setInvestmentSignals(initialValue.investmentSignals?.length ? initialValue.investmentSignals.map((item) => ({ ...item, id: makeId() })) : [makeInvestmentSignal()]);
+    setOurTake({ description: initialValue.ourTake?.description ?? "", hoa: initialValue.ourTake?.hoa ?? "", rentalPolicy: initialValue.ourTake?.rentalPolicy ?? "", delivery: initialValue.ourTake?.delivery ?? "", height: initialValue.ourTake?.height ?? "", developer: initialValue.ourTake?.developer ?? "", architect: initialValue.ourTake?.architect ?? "", interiors: initialValue.ourTake?.interiors ?? "" });
+    setEditorialImage(initialValue.ourTake?.image ? imageItem(initialValue.ourTake.image) : null);
+    setMapEmbedUrl(initialValue.locationAndNeighborhood?.mapEmbedUrl ?? "");
+    setNeighborhoodImages((initialValue.locationAndNeighborhood?.images ?? []).map(imageItem));
+    setAmenitiesContent({ title: initialValue.amenitiesSection?.title ?? "", subtitle: initialValue.amenitiesSection?.subtitle ?? "" });
+    setAmenityItems(initialValue.amenitiesSection?.items?.length ? initialValue.amenitiesSection.items.map((item) => ({ ...item, id: makeId(), icon: item.icon ? imageItem(item.icon) : null })) : [makeAmenityItem()]);
+    setPenthouse({ title: initialValue.upperPenthouse?.title ?? "", subtitle: initialValue.upperPenthouse?.subtitle ?? "" });
+    setPenthouseImages((initialValue.upperPenthouse?.images ?? []).map(imageItem));
+    setClosingImage(initialValue.closingImage ? imageItem(initialValue.closingImage) : null);
+  }, [initialValue]);
+  useEffect(() => {
+    onChange({
+      team,
+      moreViewImages: moreViewImages.map((image) => image.url),
+      marketPositions: marketPositions.filter((item) => item.percentage || item.title || item.subtitle),
+      investmentSignals: investmentSignals.filter((item) => item.brandName || item.title || item.subtitle),
+      ourTake: { ...ourTake, image: editorialImage?.url },
+      locationAndNeighborhood: { mapEmbedUrl, images: neighborhoodImages.map((image) => image.url) },
+      amenitiesSection: { title: amenitiesContent.title, subtitle: amenitiesContent.subtitle, items: amenityItems.filter((item) => item.title || item.subtitle || item.icon).map((item) => ({ icon: item.icon?.url, title: item.title, subtitle: item.subtitle })) },
+      upperPenthouse: { title: penthouse.title, subtitle: penthouse.subtitle, images: penthouseImages.map((image) => image.url) },
+      closingImage: closingImage?.url,
+    });
+  }, [team, moreViewImages, marketPositions, investmentSignals, ourTake, editorialImage, mapEmbedUrl, neighborhoodImages, amenitiesContent, amenityItems, penthouse, penthouseImages, closingImage, onChange]);
   const updateMarketPosition = (itemId: string, patch: Partial<MarketPosition>) => setMarketPositions((current) => current.map((item) => item.id === itemId ? { ...item, ...patch } : item));
   const updateInvestmentSignal = (itemId: string, patch: Partial<InvestmentSignal>) => setInvestmentSignals((current) => current.map((item) => item.id === itemId ? { ...item, ...patch } : item));
-  function previewMoreViewImages(event: ChangeEvent<HTMLInputElement>) { if (!event.target.files?.length) return; setMoreViewImages((current) => [...current, ...[...event.target.files!].map(localImage)]); event.target.value = ""; }
-  function removeMoreViewImage(imageId: string) { setMoreViewImages((current) => { const image=current.find((item)=>item.id===imageId); if(image) URL.revokeObjectURL(image.url); return current.filter((item)=>item.id!==imageId); }); }
-  function replaceSingleImage(file: File|undefined,current:MoreViewImage|null,setter:(image:MoreViewImage|null)=>void) { if(!file)return; if(current)URL.revokeObjectURL(current.url); setter(localImage(file)); }
-  function addLocalImages(event:ChangeEvent<HTMLInputElement>,setter:(value:MoreViewImage[]|((current:MoreViewImage[])=>MoreViewImage[]))=>void,limit?:number) { if(!event.target.files?.length)return; const selected=[...event.target.files].map(localImage); setter((current)=>{const available=limit?Math.max(0,limit-current.length):selected.length;selected.slice(available).forEach((image)=>URL.revokeObjectURL(image.url));return [...current,...selected.slice(0,available)];});event.target.value=""; }
-  function removeLocalImage(imageId:string,setter:(value:MoreViewImage[]|((current:MoreViewImage[])=>MoreViewImage[]))=>void) { setter((current)=>{const image=current.find((item)=>item.id===imageId);if(image)URL.revokeObjectURL(image.url);return current.filter((item)=>item.id!==imageId);}); }
+  async function previewMoreViewImages(event: ChangeEvent<HTMLInputElement>) { if (!event.target.files?.length) return; const selected=[...event.target.files]; event.target.value=""; try { const uploaded=await uploadFilesToCloudinary(selected); setMoreViewImages((current)=>[...current,...uploaded]); } catch (error) { window.alert(error instanceof Error ? error.message : "Image upload failed"); } }
+  function removeMoreViewImage(imageId: string) { setMoreViewImages((current) => current.filter((item)=>item.id!==imageId)); }
+  async function replaceSingleImage(file: File|undefined,_current:MoreViewImage|null,setter:(image:MoreViewImage|null)=>void) { if(!file)return; try { const [uploaded]=await uploadFilesToCloudinary([file]); setter(uploaded); } catch(error) { window.alert(error instanceof Error ? error.message : "Image upload failed"); } }
+  async function addLocalImages(event:ChangeEvent<HTMLInputElement>,setter:(value:MoreViewImage[]|((current:MoreViewImage[])=>MoreViewImage[]))=>void,limit?:number) { if(!event.target.files?.length)return; const selected=[...event.target.files];event.target.value="";try{const uploaded=await uploadFilesToCloudinary(selected);setter((current)=>{const available=limit?Math.max(0,limit-current.length):uploaded.length;return [...current,...uploaded.slice(0,available)];});}catch(error){window.alert(error instanceof Error?error.message:"Image upload failed");} }
+  function removeLocalImage(imageId:string,setter:(value:MoreViewImage[]|((current:MoreViewImage[])=>MoreViewImage[]))=>void) { setter((current)=>current.filter((item)=>item.id!==imageId)); }
   function updateAmenityItem(itemId:string,patch:Partial<AmenityItem>){setAmenityItems((current)=>current.map((item)=>item.id===itemId?{...item,...patch}:item));}
   return (<>
 <FormCard
@@ -440,7 +478,6 @@ export function AdditionalDevelopmentSections() {
                     replaceSingleImage(file, editorialImage, setEditorialImage)
                   }
                   onRemove={() => {
-                    if (editorialImage) URL.revokeObjectURL(editorialImage.url);
                     setEditorialImage(null);
                   }}
                 />
@@ -583,16 +620,12 @@ export function AdditionalDevelopmentSections() {
                             type="file"
                             accept="image/png,image/jpeg,image/webp,image/svg+xml"
                             className="sr-only"
-                            onChange={(e) => {
+                            onChange={async (e) => {
                               const file = e.target.files?.[0];
-                              if (file) {
-                                if (item.icon)
-                                  URL.revokeObjectURL(item.icon.url);
-                                updateAmenityItem(item.id, {
-                                  icon: localImage(file),
-                                });
-                              }
                               e.target.value = "";
+                              if (!file) return;
+                              try { const [icon] = await uploadFilesToCloudinary([file]); updateAmenityItem(item.id, { icon }); }
+                              catch (error) { window.alert(error instanceof Error ? error.message : "Icon upload failed"); }
                             }}
                           />
                         </label>
@@ -704,7 +737,6 @@ export function AdditionalDevelopmentSections() {
                   replaceSingleImage(file, closingImage, setClosingImage)
                 }
                 onRemove={() => {
-                  if (closingImage) URL.revokeObjectURL(closingImage.url);
                   setClosingImage(null);
                 }}
               />
@@ -844,4 +876,3 @@ function SingleImageField({
     </div>
   );
 }
-
