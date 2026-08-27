@@ -170,6 +170,13 @@ export function DevelopmentsPage() {
                             >
                               <Icon name="eye" size={17} />
                             </button>
+                            <Link
+                              href={`/developments/${development._id}/edit`}
+                              aria-label={`Edit ${development.developmentName}`}
+                              className="grid size-11 place-items-center rounded-full text-gold hover:bg-[#fbf5e1] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold"
+                            >
+                              <Icon name="edit" size={17} />
+                            </Link>
                             <button
                               onClick={() => handleDelete(development)}
                               disabled={deleteMutation.isPending}

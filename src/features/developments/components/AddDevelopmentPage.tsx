@@ -2,14 +2,16 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { ChangeEvent, FormEvent, ReactNode, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { ChangeEvent, FormEvent, ReactNode, useEffect, useRef, useState } from "react";
 import { OverviewHeader } from "@/features/overview/components/OverviewHeader";
 import { OverviewSidebar } from "@/features/overview/components/OverviewSidebar";
 import { useNeighborhoods } from "@/features/neighborhoods/hooks/use-neighborhoods";
-import { useCreateDevelopment } from "../hooks/use-developments";
+import { useCreateDevelopment, useDevelopment, useUpdateDevelopment } from "../hooks/use-developments";
 import { AdditionalDevelopmentSections } from "./AdditionalDevelopmentSections";
 import type {
   ConstructionStage,
+  DevelopmentPageContent,
   DevelopmentPayload,
 } from "../types/development.types";
 
@@ -45,8 +47,11 @@ const stageMap: Record<ProgressStep, ConstructionStage> = {
   Delivered: "move in ready",
 };
 
-export function AddDevelopmentPage() {
+export function AddDevelopmentPage({ developmentId }: { developmentId?: string }) {
+  const router = useRouter();
   const createDevelopment = useCreateDevelopment();
+  const updateDevelopment = useUpdateDevelopment();
+  const { data: existingDevelopment } = useDevelopment(developmentId ?? null);
   const {
     data: neighborhoods = [],
     isLoading: neighborhoodsLoading,
@@ -65,6 +70,7 @@ export function AddDevelopmentPage() {
     null,
   );
   const [message, setMessage] = useState("");
+  const [additionalContent, setAdditionalContent] = useState<DevelopmentPageContent>({});
   const [form, setForm] = useState({
     developmentName: "",
     selectedNeighbourhood: "",
@@ -82,6 +88,32 @@ export function AddDevelopmentPage() {
     shortIntroduction: "",
     projectOverview: "",
   });
+  useEffect(() => {
+    if (!existingDevelopment) return;
+    setForm({
+      developmentName: existingDevelopment.developmentName,
+      selectedNeighbourhood: typeof existingDevelopment.selectedNeighbourhood === "string" ? existingDevelopment.selectedNeighbourhood : existingDevelopment.selectedNeighbourhood._id,
+      address: existingDevelopment.address,
+      city: existingDevelopment.city,
+      startingPrice: String(existingDevelopment.startingPrice),
+      deliveryYear: existingDevelopment.deliveryYear,
+      totalResidencies: String(existingDevelopment.totalResidencies),
+      stories: String(existingDevelopment.stories),
+      height: existingDevelopment.pageContent?.ourTake?.height ?? "",
+      developer: existingDevelopment.developer,
+      bedrooms: existingDevelopment.bedrooms,
+      sizeRange: existingDevelopment.sizeRange,
+      hoa: existingDevelopment.pageContent?.hoa ?? "",
+      shortIntroduction: existingDevelopment.shortIntroduction,
+      projectOverview: existingDevelopment.projectOverview,
+    });
+    setImages(existingDevelopment.galleryImages.map((image) => ({ id: makeId(), url: image.url })));
+    const savedFeatures = existingDevelopment.pageContent?.projectFeatures;
+    if (savedFeatures?.length) setFeatures(savedFeatures.map((feature) => ({ id: makeId(), title: feature.title, description: feature.description, image: feature.image })));
+    const savedProgress = existingDevelopment.pageContent?.constructionProgress;
+    if (savedProgress) { setProgressStep(savedProgress.stage as ProgressStep); setProgress(String(savedProgress.percentage)); }
+    setAdditionalContent(existingDevelopment.pageContent ?? {});
+  }, [existingDevelopment]);
   const setField = (key: keyof typeof form, value: string) =>
     setForm((current) => ({ ...current, [key]: value }));
   const updateFeature = (featureId: string, patch: Partial<FeatureCard>) =>
@@ -160,7 +192,7 @@ export function AddDevelopmentPage() {
       );
     const payload: DevelopmentPayload = {
       developmentName: form.developmentName,
-      propertySlug: `${form.developmentName
+      propertySlug: existingDevelopment?.propertySlug ?? `${form.developmentName
         .toLowerCase()
         .trim()
         .replace(/[^a-z0-9]+/g, "-")
@@ -188,7 +220,7 @@ export function AddDevelopmentPage() {
       salesProgress: `${progressStep} - ${progress}%`,
       rentalPolicy: "Contact for details",
       residences: [],
-      currentStage: progressStep,
+      currentStage: progressStep === "Planning" ? "planning" : progressStep === "Construction" ? "structure exterior" : progressStep === "Completing" ? "interior finishing" : "completed",
       expectedDelivery: form.deliveryYear,
       detailPage: {
         keyFacts: [
@@ -212,10 +244,24 @@ export function AddDevelopmentPage() {
           imagePosition: index % 2 === 0 ? "right" : "left",
         })),
       },
+      pageContent: {
+        ...additionalContent,
+        hoa: form.hoa,
+        constructionProgress: { stage: progressStep, percentage: Number(progress) },
+        projectFeatures: features.map((feature, index) => ({
+          title: feature.title,
+          description: feature.description,
+          image: feature.image,
+          imagePosition: index % 2 === 0 ? "right" : "left",
+        })),
+      },
     };
     try {
-      await createDevelopment.mutateAsync(payload);
-      setMessage("Development published successfully.");
+      if (developmentId) await updateDevelopment.mutateAsync({ id: developmentId, payload });
+      else await createDevelopment.mutateAsync(payload);
+      setMessage(developmentId ? "Development updated successfully." : "Development published successfully.");
+      router.push("/developments");
+      router.refresh();
     } catch (error) {
       setMessage(
         error instanceof Error
@@ -230,8 +276,8 @@ export function AddDevelopmentPage() {
       <OverviewSidebar active="Developments" />
       <div className="min-w-0 flex-1">
         <OverviewHeader
-          title="Add Development"
-          description="Create a new construction project for the website."
+          title={developmentId ? "Edit Development" : "Add Development"}
+          description={developmentId ? "Update this development and its page content." : "Create a new construction project for the website."}
         />
         <main className="mx-auto max-w-[1320px] px-5 py-7 sm:px-8">
           <form onSubmit={submit} className="space-y-6">
@@ -559,8 +605,8 @@ export function AddDevelopmentPage() {
                       </p>
                       <p className="mt-1 text-sm text-muted">
                         {index === 0
-                          ? "Description left Â· Image right"
-                          : "Image left Â· Description right"}
+                          ? "Description left · Image right"
+                          : "Image left · Description right"}
                       </p>
                     </div>
                     <div
@@ -648,7 +694,7 @@ export function AddDevelopmentPage() {
               </div>
             </FormCard>
 
-            <AdditionalDevelopmentSections />
+            <AdditionalDevelopmentSections initialValue={existingDevelopment?.pageContent} onChange={setAdditionalContent} />
 
           <footer className="sticky bottom-4 z-10 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-line bg-white/95 px-6 py-5 shadow-lg backdrop-blur">
               <p
@@ -659,7 +705,7 @@ export function AddDevelopmentPage() {
                     : "text-sm font-medium text-danger"
                 }
               >
-                {message || `${images.length} images Â· ${progress}% complete`}
+                {message || `${images.length} images · ${progress}% complete`}
               </p>
               <div className="ml-auto flex gap-3">
                 <Link
@@ -670,7 +716,7 @@ export function AddDevelopmentPage() {
                 </Link>
                 <button
                   disabled={
-                    createDevelopment.isPending ||
+                    createDevelopment.isPending || updateDevelopment.isPending ||
                     uploading ||
                     Boolean(uploadingFeatureId)
                   }
@@ -729,4 +775,3 @@ function FormCard({
     </section>
   );
 }
-

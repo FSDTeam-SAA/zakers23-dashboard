@@ -27,6 +27,21 @@ export type DevelopmentDetailPage = {
   relatedDevelopments?: { developmentName: string; propertySlug?: string; image: string; location?: string; startingPrice?: number }[];
 };
 
+export type DevelopmentPageContent = {
+  hoa?: string;
+  constructionProgress?: { stage: string; percentage: number };
+  projectFeatures?: { title: string; description: string; image: string; imagePosition: "left" | "right" }[];
+  team?: { developer?: string; architect?: string; interiorDesign?: string; description?: string };
+  moreViewImages?: string[];
+  marketPositions?: { percentage: string; title: string; subtitle: string }[];
+  investmentSignals?: { brandName: string; title: string; subtitle: string }[];
+  ourTake?: { description?: string; image?: string; hoa?: string; rentalPolicy?: string; delivery?: string; height?: string; developer?: string; architect?: string; interiors?: string };
+  locationAndNeighborhood?: { mapEmbedUrl?: string; images?: string[] };
+  amenitiesSection?: { title?: string; subtitle?: string; items?: { icon?: string; title: string; subtitle: string }[] };
+  upperPenthouse?: { title?: string; subtitle?: string; images?: string[] };
+  closingImage?: string;
+};
+
 export type Development = {
   _id: string;
   developmentName: string;
@@ -57,6 +72,7 @@ export type Development = {
   currentStage?: string;
   expectedDelivery?: string;
   detailPage?: DevelopmentDetailPage;
+  pageContent?: DevelopmentPageContent;
   createdAt: string;
   updatedAt: string;
 };
